@@ -28,17 +28,24 @@ def search_movies(query):
 
 # Group movies by title + year
 def group_movies(results):
-    grouped = defaultdict(list)
+    grouped = {}
 
     for title, year, quality, url in results:
         key = f"{title} ({year})"
-        grouped[key].append({
+
+        if key not in grouped:
+            grouped[key] = {
+                "title": title,
+                "year": year,
+                "versions": []
+            }
+
+        grouped[key]["versions"].append({
             "quality": quality,
             "url": url
         })
 
     return grouped
-
 
 def print_grouped(grouped):
     if not grouped:
@@ -47,16 +54,26 @@ def print_grouped(grouped):
 
     print(f"\nFound {len(grouped)} movies:\n")
 
-    for i, (movie, versions) in enumerate(grouped.items(), 1):
+    for i, (key, movie) in enumerate(grouped.items(), 1):
 
-        print(f"{i}. {movie}")
+        title = movie["title"]
+        year = movie["year"]
+        versions = movie["versions"]
+
+        print(f"{i}. {title} ({year})")
+
+        # Print available qualities as selectable options
+        qualities = [v["quality"] for v in versions]
+
+        print("   Available qualities:")
+        print("   ", " | ".join([f"[{q}]" for q in qualities]))
+
+        print("\n   Versions:")
 
         for v in versions:
-            print(f"   ├── [{v['quality']}] {v['url']}")
+            print(f"   ├── {v['quality']} → {v['url']}")
 
         print("-" * 50)
-
-
 def main():
     query = input("Search movie: ").strip().lower()
 
