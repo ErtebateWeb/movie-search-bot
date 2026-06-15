@@ -3,3 +3,23 @@ __pycache__/
 *.pyc
 storage/
 .venv/
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+.venv/
+venv/
+
+# Environment
+.env
+
+# Database
+storage/*.db
+
+# VSCode
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
