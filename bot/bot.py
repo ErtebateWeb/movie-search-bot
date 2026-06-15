@@ -2,7 +2,18 @@ import sys
 import os
 from dotenv import load_dotenv
 
+import socket
 
+# Force IPv4 for all outgoing connections
+orig_getaddrinfo = socket.getaddrinfo
+
+def getaddrinfo_ipv4(*args, **kwargs):
+    return [
+        addr for addr in orig_getaddrinfo(*args, **kwargs)
+        if addr[0] == socket.AF_INET
+    ]
+
+socket.getaddrinfo = getaddrinfo_ipv4
 load_dotenv()
 
 TOKEN = os.getenv("BOT_TOKEN")
