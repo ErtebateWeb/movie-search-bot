@@ -2,13 +2,15 @@ import requests
 import sys
 import os
 
+# Fix import path (keep it clean)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from bs4 import BeautifulSoup
 from config import SOURCES
-
 from database.db import init_db, get_connection
-from crawler.parser import parse_movie
+
+# NEW: use parser factory instead of old parser
+from crawler.parser_factory import ParserFactory
 
 
 # Fetch HTML page
@@ -18,14 +20,13 @@ def fetch(url):
         r.raise_for_status()
         return r.text
     except Exception as e:
-        print(f"[ERROR] {e}")
+        print(f"[ERROR] Fetch failed: {url} -> {e}")
         return None
 
 
-# Extract links from HTML
+# Extract links from directory listing
 def extract_links(html, base_url):
     soup = BeautifulSoup(html, "html.parser")
-
     links = []
 
     for a in soup.find_all("a", href=True):
@@ -34,29 +35,41 @@ def extract_links(html, base_url):
         if href == "../":
             continue
 
-        links.append(base_url + href)
+        # Build absolute URL
+        full_url = base_url + href
+        links.append(full_url)
 
     return links
 
 
-# Save movie to database
+# Save structured media to database
 def save_movie(conn, movie):
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT OR IGNORE INTO movies (title, year, quality, url)
-        VALUES (?, ?, ?, ?)
+        INSERT OR IGNORE INTO movies (
+            title, year, quality, url,
+            source, imdb_id, content_type,
+            season, episode, language
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-        movie["title"],
-        movie["year"],
-        movie["quality"],
-        movie["url"]
+        movie.get("title"),
+        movie.get("year"),
+        movie.get("quality"),
+        movie.get("url"),
+        movie.get("source"),
+        movie.get("imdb_id"),
+        movie.get("content_type"),
+        movie.get("season"),
+        movie.get("episode"),
+        movie.get("language"),
     ))
 
     conn.commit()
 
 
-# Recursive crawler
+# Recursive crawler engine
 def crawl(url, conn, depth=0, max_depth=2):
     if depth > max_depth:
         return
@@ -71,18 +84,31 @@ def crawl(url, conn, depth=0, max_depth=2):
 
     for link in links:
 
-        # File detected
-        if link.endswith(".mkv"):
-            movie = parse_movie(link)
+        # -------------------------
+        # FILE DETECTED (movie/episode)
+        # -------------------------
+        if link.endswith((".mkv", ".mp4", ".avi")):
+
+            # Select correct parser based on source
+            parser = ParserFactory.get_parser(link)
+
+            movie = parser.parse(link)
+
+            # Add URL explicitly (important)
+            movie["url"] = link
+
             save_movie(conn, movie)
 
-            print(f"[SAVED] {movie['title']}")
+            print(f"[SAVED] {movie.get('title')}")
 
-        # Directory detected
+        # -------------------------
+        # DIRECTORY DETECTED
+        # -------------------------
         elif link.endswith("/"):
             crawl(link, conn, depth + 1, max_depth)
 
 
+# App entry point
 def main():
     init_db()
     conn = get_connection()
