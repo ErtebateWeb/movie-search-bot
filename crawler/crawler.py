@@ -10,13 +10,14 @@ from bs4 import BeautifulSoup
 from config import SOURCES
 from database.db import init_db, get_connection
 from crawler.parser_factory import ParserFactory
+from database.db import init_db, get_connection, reset_db
 
 
 # ----------------------------
 # Global crawl safety controls
 # ----------------------------
 visited = set()
-request_delay = 0.2  # small delay to avoid hammering server
+request_delay = 0  # small delay to avoid hammering server
 
 
 # Fetch HTML page
@@ -136,6 +137,8 @@ def crawl(url, conn, depth=0, max_depth=3):
 
 # Main entry
 def main():
+    
+    reset_db()
     init_db()
     conn = get_connection()
 
