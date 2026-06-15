@@ -1,7 +1,7 @@
 import requests
 import sys
 import os
-
+from urllib.parse import urljoin
 # Fix import path (keep it clean)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -35,8 +35,7 @@ def extract_links(html, base_url):
         if href == "../":
             continue
 
-        # Build absolute URL
-        full_url = base_url + href
+        full_url = urljoin(base_url, href)
         links.append(full_url)
 
     return links
