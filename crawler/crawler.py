@@ -1,109 +1,110 @@
 import requests
-import sys
-import os
-import time
+from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from bs4 import BeautifulSoup
 from config import SOURCES
 from database.db import init_db, get_connection
 from crawler.parser_factory import ParserFactory
-from database.db import init_db, get_connection, reset_db
+from utils.logger import log_info, log_error
 
+import time
 
-# ----------------------------
-# Global crawl safety controls
-# ----------------------------
+# -------------------------
+# CONFIG
+# -------------------------
+TIMEOUT = 20
+MAX_DEPTH = 3
+
 visited = set()
-request_delay = 0  # small delay to avoid hammering server
+
+MEDIA_EXTENSIONS = (".mkv", ".mp4", ".avi", ".mov", ".wmv")
 
 
-# Fetch HTML page
+# -------------------------
+# FETCH
+# -------------------------
 def fetch(url):
     try:
-        r = requests.get(url, timeout=30)
+        r = requests.get(url, timeout=TIMEOUT)
         r.raise_for_status()
         return r.text
     except Exception as e:
-        print(f"[ERROR] Fetch failed: {url} -> {e}")
+        log_error(f"Fetch failed: {url} -> {e}")
         return None
 
 
-# Extract links safely using urljoin
+# -------------------------
+# LINK EXTRACTION
+# -------------------------
 def extract_links(html, base_url):
     soup = BeautifulSoup(html, "html.parser")
+
     links = []
 
     for a in soup.find_all("a", href=True):
         href = a["href"]
 
-        # Skip parent directory
         if href in ("../", "./"):
             continue
 
         full_url = urljoin(base_url, href)
-
         links.append(full_url)
 
     return links
 
 
-# Save to DB
+# -------------------------
+# TYPE CHECKS
+# -------------------------
+def is_media_file(url):
+    path = urlparse(url).path.lower()
+    return path.endswith(MEDIA_EXTENSIONS)
+
+
+def is_directory(url):
+    path = urlparse(url).path
+    last_part = path.rstrip("/").split("/")[-1]
+
+    # no extension => directory
+    return "." not in last_part
+
+
+# -------------------------
+# SAVE TO DB
+# -------------------------
 def save_movie(conn, movie):
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT OR IGNORE INTO movies (
-            title, year, quality, url,
-            source, imdb_id, content_type,
-            season, episode, language
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT OR IGNORE INTO movies (title, year, quality, url)
+        VALUES (?, ?, ?, ?)
     """, (
         movie.get("title"),
         movie.get("year"),
         movie.get("quality"),
-        movie.get("url"),
-        movie.get("source"),
-        movie.get("imdb_id"),
-        movie.get("content_type"),
-        movie.get("season"),
-        movie.get("episode"),
-        movie.get("language"),
+        movie.get("url")
     ))
 
     conn.commit()
 
 
-# Check if URL is file
-def is_media_file(url):
-    return url.lower().endswith((".mkv", ".mp4", ".avi", ".m4v"))
-
-
-# Crawl engine
-def crawl(url, conn, depth=0, max_depth=3):
-    global visited
-
-    # ----------------------------
-    # Safety: depth limit
-    # ----------------------------
-    if depth > max_depth:
+# -------------------------
+# CRAWLER CORE
+# -------------------------
+def crawl(url, conn, depth=0):
+    if depth > MAX_DEPTH:
         return
 
-    # ----------------------------
-    # Safety: avoid duplicates
-    # ----------------------------
-    if url in visited:
+    clean_url = url.rstrip("/")
+
+    if clean_url in visited:
         return
 
-    visited.add(url)
+    visited.add(clean_url)
 
-    print(f"[CRAWL] {url}")
+    log_info(f"[CRAWL] depth={depth} url={url}")
 
     html = fetch(url)
-
     if not html:
         return
 
@@ -111,45 +112,34 @@ def crawl(url, conn, depth=0, max_depth=3):
 
     for link in links:
 
-        # ----------------------------
-        # FILE DETECTED
-        # ----------------------------
+        # MEDIA FILE
         if is_media_file(link):
 
             parser = ParserFactory.get_parser(link)
             movie = parser.parse(link)
-
             movie["url"] = link
 
             save_movie(conn, movie)
 
-            print(f"[SAVED] {movie.get('title')}")
+            log_info(f"[SAVED] {movie.get('title')}")
 
-        # ----------------------------
-        # DIRECTORY DETECTED
-        # ----------------------------
-        else:
-            # Small delay to be polite
-            time.sleep(request_delay)
+        # DIRECTORY
+        elif is_directory(link):
 
-            crawl(link, conn, depth + 1, max_depth)
+            crawl(link, conn, depth + 1)
 
 
-# Main entry
+# -------------------------
+# MAIN
+# -------------------------
 def main():
-    
-    reset_db()
     init_db()
     conn = get_connection()
-
-    print("[INFO] Starting crawler...")
 
     for url in SOURCES:
         crawl(url, conn)
 
     conn.close()
-
-    print("[INFO] Crawl finished.")
 
 
 if __name__ == "__main__":
