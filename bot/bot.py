@@ -99,7 +99,7 @@ async def send_movie_result(update, context, movie):
     if "movie_counter" not in context.user_data:
         context.user_data["movie_counter"] = 0
     context.user_data["movie_counter"] += 1
-    data_key = f"movie:{context.user_data['movie_counter']}"
+    data_key = f"movie_{context.user_data['movie_counter']}"
 
     context.user_data[data_key] = {
         "title": movie["title"],
