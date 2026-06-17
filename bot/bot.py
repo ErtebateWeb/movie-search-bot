@@ -34,6 +34,11 @@ MAX_BUTTONS = 10
 
 def build_version_label(v):
     label = v.get("quality", "Download")
+    if v.get("episode"):
+        ep = v["episode"]
+        if v.get("season"):
+            ep = f"S{int(v['season']):02d}E{int(ep):02d}"
+        label = f"{ep} - {label}"
     if v.get("sub_type"):
         label += f" ({v['sub_type']})"
     if v.get("file_size"):

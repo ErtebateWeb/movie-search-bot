@@ -62,6 +62,8 @@ def group_movies(rows):
             "source": r.get("source"),
             "codec": r.get("codec"),
             "release_group": r.get("release_group"),
+            "season": r.get("season"),
+            "episode": r.get("episode"),
         })
 
     return grouped
