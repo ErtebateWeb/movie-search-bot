@@ -1,21 +1,22 @@
-# This module selects correct parser based on source URL
-# English comments only as requested
-
 from crawler.parsers.film9_parser import Film9Parser
-from crawler.parsers.donyayeserial_parser import DonyayeSerialParser
+from crawler.parsers.donyayeserial_parser import (
+    DonyayeSerialParser,
+    DonyayeSerialArchiveParser,
+)
 
 
 class ParserFactory:
 
     @staticmethod
     def get_parser(url: str):
-        # Select parser based on URL pattern
 
-        if "Film9" in url or "Film2Media" in url:
+        if "film9" in url.lower() or "film2media" in url.lower():
             return Film9Parser()
 
-        if "DonyayeSerial" in url:
+        if "dls2.film2cinemaha.top" in url:
+            # Archive pages (top_5000_movies.html etc.) contain structured movie listings
+            if url.endswith(".html"):
+                return DonyayeSerialArchiveParser()
             return DonyayeSerialParser()
 
-        # Default fallback parser
         return Film9Parser()

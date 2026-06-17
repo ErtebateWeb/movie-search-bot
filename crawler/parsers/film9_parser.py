@@ -1,50 +1,41 @@
-# English comments only as requested
-
 import re
-from urllib.parse import urlparse
+import urllib.parse
+from crawler.parsers.base import BaseParser
 
 
-class Film9Parser:
+class Film9Parser(BaseParser):
 
-    def parse(self, url: str):
-        """
-        Parse direct file-based movie links (Film9 / Film2Media style)
-        Example:
-        Zootopia.2016.1080p.Farsi.2Dubbed.Film2Media.mkv
-        """
+    def parse(self, url: str, html: str = None):
 
-        filename = urlparse(url).path.split("/")[-1]
+        url = urllib.parse.unquote(url)
+        filename = url.split("/")[-1]
 
-        # Extract year (4 digits)
-        year_match = re.search(r"(19|20)\d{2}", filename)
-        year = year_match.group(0) if year_match else None
+        filename = re.sub(r"\.(mkv|mp4|avi|webm|m4v)$", "", filename, flags=re.I)
 
-        # Extract quality
-        quality_match = re.search(r"(480p|720p|1080p|2160p)", filename)
-        quality = quality_match.group(0) if quality_match else None
+        year = re.search(r"(19|20)\d{2}", filename)
+        year = year.group(0) if year else None
 
-        # Detect language / dub
-        language = "dubbed" if "dubbed" in filename.lower() else None
+        quality = re.search(r"(2160p|1080p|720p|480p)", filename)
+        quality = quality.group(0) if quality else None
 
-        # Clean title (remove dots and technical parts)
         title = filename
 
-        # Remove extension
-        title = re.sub(r"\.mkv$|\.mp4$", "", title)
+        junk = [
+            "1080p","720p","480p","BluRay","Web-DL","HDRip",
+            "Farsi","Dubbed","Film9","Film2Media","YIFY","Pahe","Ganool"
+        ]
 
-        # Remove quality and extra tags
-        title = re.sub(r"(480p|720p|1080p|2160p)", "", title)
-        title = re.sub(r"\d{4}", "", title)
-        title = title.replace(".", " ").strip()
+        for j in junk:
+            title = re.sub(j, "", title, flags=re.I)
+
+        title = re.sub(r"[._\-]+", " ", title).strip()
+
+        if len(title) < 2:
+            return None
 
         return {
             "title": title,
             "year": year,
             "quality": quality,
-            "source": "film9",
-            "imdb_id": None,
-            "content_type": "movie",
-            "season": None,
-            "episode": None,
-            "language": language
+            "url": url
         }

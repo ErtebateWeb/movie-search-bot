@@ -43,22 +43,37 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     for key, movie in grouped.items():
-
         title = movie["title"]
         year = movie["year"]
         versions = movie["versions"]
+        imdb_id = movie.get("imdb_id") or ""
+        rating = movie.get("rating") or ""
 
-        text = f"{title} ({year})"
+        imdb_link = f"https://www.imdb.com/title/{imdb_id}/" if imdb_id else ""
+        rating_str = f" ⭐ {rating}" if rating else ""
 
-        # Create buttons for qualities
+        text = f"{title} ({year}){rating_str}"
+
         buttons = []
 
         for v in versions:
+            label = v.get("quality", "Download")
+
+            if v.get("sub_type"):
+                label += f" ({v['sub_type']})"
+            if v.get("file_size"):
+                label += f" [{v['file_size']}]"
+
             buttons.append([
                 InlineKeyboardButton(
-                    v["quality"],
-                    url=v["url"]  # direct download
+                    label,
+                    url=v["url"]
                 )
+            ])
+
+        if imdb_link:
+            buttons.append([
+                InlineKeyboardButton("IMDb", url=imdb_link)
             ])
 
         reply_markup = InlineKeyboardMarkup(buttons)

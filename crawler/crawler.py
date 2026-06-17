@@ -1,46 +1,35 @@
+import sys
+import os
+
+# Add project root to path so sibling packages (database, utils) are importable
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
-
-from config import SOURCES
-from database.db import init_db, get_connection
-from crawler.parser_factory import ParserFactory
-from utils.logger import log_info, log_error
-
+from urllib.parse import urljoin
 import time
 
-# -------------------------
-# CONFIG
-# -------------------------
-TIMEOUT = 20
-MAX_DEPTH = 3
+from database.db import init_db, get_connection, save_movie
+from crawler.parser_factory import ParserFactory
+from utils.logger import logger
 
-visited = set()
-
-MEDIA_EXTENSIONS = (".mkv", ".mp4", ".avi", ".mov", ".wmv")
+VIDEO_EXTENSIONS = (".mkv", ".mp4", ".avi", ".webm", ".m4v")
 
 
-# -------------------------
-# FETCH
-# -------------------------
 def fetch(url):
     try:
-        r = requests.get(url, timeout=TIMEOUT)
+        r = requests.get(url, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
         r.raise_for_status()
         return r.text
     except Exception as e:
-        log_error(f"Fetch failed: {url} -> {e}")
+        logger.error(f"[FETCH ERROR] {url} -> {e}")
         return None
 
 
-# -------------------------
-# LINK EXTRACTION
-# -------------------------
 def extract_links(html, base_url):
     soup = BeautifulSoup(html, "html.parser")
 
     links = []
-
     for a in soup.find_all("a", href=True):
         href = a["href"]
 
@@ -53,56 +42,20 @@ def extract_links(html, base_url):
     return links
 
 
-# -------------------------
-# TYPE CHECKS
-# -------------------------
-def is_media_file(url):
-    path = urlparse(url).path.lower()
-    return path.endswith(MEDIA_EXTENSIONS)
+def is_video(url):
+    return url.lower().endswith(VIDEO_EXTENSIONS)
 
 
-def is_directory(url):
-    path = urlparse(url).path
-    last_part = path.rstrip("/").split("/")[-1]
+def crawl(url, conn, depth=0, max_depth=7, visited=None):
+    if visited is None:
+        visited = set()
 
-    # no extension => directory
-    return "." not in last_part
-
-
-# -------------------------
-# SAVE TO DB
-# -------------------------
-def save_movie(conn, movie):
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        INSERT OR IGNORE INTO movies (title, year, quality, url)
-        VALUES (?, ?, ?, ?)
-    """, (
-        movie.get("title"),
-        movie.get("year"),
-        movie.get("quality"),
-        movie.get("url")
-    ))
-
-    conn.commit()
-
-
-# -------------------------
-# CRAWLER CORE
-# -------------------------
-def crawl(url, conn, depth=0):
-    if depth > MAX_DEPTH:
+    if url in visited:
         return
 
-    clean_url = url.rstrip("/")
+    visited.add(url)
 
-    if clean_url in visited:
-        return
-
-    visited.add(clean_url)
-
-    log_info(f"[CRAWL] depth={depth} url={url}")
+    logger.info(f"[CRAWL] depth={depth} url={url}")
 
     html = fetch(url)
     if not html:
@@ -110,31 +63,56 @@ def crawl(url, conn, depth=0):
 
     links = extract_links(html, url)
 
+    # Check if this page has archive-style movie listings
+    has_movie_listings = "IMDb Code" in html or "start_year" in html
+
+    if has_movie_listings:
+        parser = ParserFactory.get_parser(url)
+        if hasattr(parser, "parse") and "IMDb Code" in html:
+            movies = parser.parse(url, html)
+            if isinstance(movies, list):
+                for movie in movies:
+                    if movie and movie.get("versions"):
+                        for version in movie["versions"]:
+                            save_movie(conn, {
+                                "title": movie.get("title"),
+                                "year": movie.get("year"),
+                                "quality": version.get("quality_label"),
+                                "imdb_id": movie.get("imdb_id"),
+                                "rating": movie.get("rating"),
+                                "votes": movie.get("votes"),
+                                "url": version.get("url"),
+                                "file_size": version.get("size"),
+                                "sub_type": version.get("sub_type"),
+                            })
+                        logger.info(f"[ARCHIVE] {movie.get('title')} ({len(movie['versions'])} versions)")
+                return
+
     for link in links:
 
-        # MEDIA FILE
-        if is_media_file(link):
+        # جلوگیری از loop و garbage
+        if link in visited:
+            continue
 
+        # FILE
+        if is_video(link):
             parser = ParserFactory.get_parser(link)
-            movie = parser.parse(link)
-            movie["url"] = link
+            movie = parser.parse(link, html)
 
-            save_movie(conn, movie)
-
-            log_info(f"[SAVED] {movie.get('title')}")
+            if movie:
+                save_movie(conn, movie)
+                logger.info(f"[SAVED] {movie['title']}")
 
         # DIRECTORY
-        elif is_directory(link):
+        elif link.endswith("/") and depth < max_depth:
+            crawl(link, conn, depth + 1, max_depth, visited)
 
-            crawl(link, conn, depth + 1)
 
-
-# -------------------------
-# MAIN
-# -------------------------
 def main():
     init_db()
     conn = get_connection()
+
+    from config import SOURCES
 
     for url in SOURCES:
         crawl(url, conn)

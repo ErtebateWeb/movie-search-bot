@@ -1,43 +1,80 @@
 import re
-import os
+import urllib.parse
 
-QUALITY = ["480p", "720p", "1080p", "2160p", "4K"]
+VIDEO_EXTENSIONS = (".mkv", ".mp4", ".avi", ".webm", ".m4v")
 
-def parse_movie(url):
+
+def is_valid_file(url: str) -> bool:
+    url = url.lower()
+    return url.endswith(VIDEO_EXTENSIONS)
+
+
+def clean_url(url: str) -> str:
+    return urllib.parse.unquote(url)
+
+
+def extract_info_from_url(url: str):
+    """
+    Extract:
+    - title
+    - year
+    - quality
+    """
+
+    url = clean_url(url)
+
     filename = url.split("/")[-1]
 
-    name = os.path.splitext(filename)[0]
+    # remove extension
+    filename = re.sub(r"\.(mkv|mp4|avi|webm|m4v)$", "", filename, flags=re.I)
 
-    # Extract year
-    year_match = re.search(r"(19|20)\d{2}", name)
+    # YEAR
+    year_match = re.search(r"(19|20)\d{2}", filename)
     year = year_match.group(0) if year_match else None
 
-    # Extract quality
-    quality = None
-    for q in QUALITY:
-        if q in name:
-            quality = q
-            break
+    # QUALITY
+    quality_match = re.search(r"(2160p|1080p|720p|480p|360p)", filename, re.I)
+    quality = quality_match.group(0) if quality_match else None
 
-    # Extract release group (last token usually)
-    parts = name.split(".")
+    # CLEAN TITLE
+    title = filename
 
-    release_group = None
-    if len(parts) > 1:
-        release_group = parts[-1]
+    # remove quality + source tags
+    junk_patterns = [
+        r"\b1080p\b", r"\b720p\b", r"\b480p\b", r"\b2160p\b",
+        r"\bBluRay\b", r"\bWeb[- ]DL\b", r"\bHDRip\b",
+        r"\bFarsi\b", r"\bDubbed\b", r"\bx265\b",
+        r"\bYIFY\b", r"\bGanool\b", r"\bPahe\b", r"\bFilm9\b",
+        r"\bFilm2Media\b", r"\bShAaNiG\b", r"\bTigole\b"
+    ]
 
-    # Clean title (remove metadata)
-    title = re.sub(r"(19|20)\d{2}", "", name)
-    title = re.sub(r"\b(" + "|".join(QUALITY) + r")\b", "", title)
-    title = re.sub(r"\b(Pahe|Ganool|Film9|HDRip|BluRay|WEBRip)\b", "", title, flags=re.IGNORECASE)
+    for pattern in junk_patterns:
+        title = re.sub(pattern, "", title, flags=re.I)
 
-    title = title.replace(".", " ")
+    # clean separators
+    title = re.sub(r"[._%\-]+", " ", title)
     title = re.sub(r"\s+", " ", title).strip()
 
     return {
-        "title": title,
+        "title": title if title else None,
         "year": year,
         "quality": quality,
-        "release_group": release_group,
         "url": url
     }
+
+
+def parse_movie(url: str):
+    """
+    Main parser entry
+    """
+
+    if not is_valid_file(url):
+        return None
+
+    info = extract_info_from_url(url)
+
+    # skip garbage titles like empty or "New Server"
+    if not info["title"] or len(info["title"]) < 2:
+        return None
+
+    return info
