@@ -29,7 +29,9 @@ def init_db():
             release_group TEXT,
             last_modified TEXT,
             collection TEXT,
-            is_series INTEGER DEFAULT 0
+            is_series INTEGER DEFAULT 0,
+            season TEXT,
+            episode TEXT
         )
     """)
 
@@ -54,6 +56,8 @@ def _migrate_schema(conn, cur):
         "last_modified": "TEXT",
         "collection": "TEXT",
         "is_series": "INTEGER DEFAULT 0",
+        "season": "TEXT",
+        "episode": "TEXT",
     }
 
     for col_name, col_type in new_columns.items():
@@ -87,8 +91,8 @@ def save_movie(conn, movie):
             INSERT OR IGNORE INTO movies (
                 title, year, quality, url, imdb_id, rating, votes,
                 file_size, sub_type, source, codec, release_group,
-                last_modified, collection, is_series
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                last_modified, collection, is_series, season, episode
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             movie.get("title"),
             movie.get("year"),
@@ -105,6 +109,8 @@ def save_movie(conn, movie):
             movie.get("last_modified"),
             movie.get("collection"),
             1 if movie.get("is_series") else 0,
+            movie.get("season"),
+            movie.get("episode"),
         ))
 
         conn.commit()

@@ -26,12 +26,12 @@ def search_movies(query: str, limit: int = 100):
 
     cursor.execute("""
         SELECT * FROM movies
-        WHERE title LIKE ?
+        WHERE title LIKE ? OR imdb_id LIKE ?
         ORDER BY
             CASE WHEN rating != '' THEN 1 ELSE 2 END,
             CAST(REPLACE(REPLACE(rating, ',', ''), ' ', '0') AS REAL) DESC
         LIMIT ?
-    """, (f"%{query}%", limit))
+    """, (f"%{query}%", f"%{query}%", limit))
 
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
@@ -62,6 +62,8 @@ def group_movies(rows):
             "source": r.get("source"),
             "codec": r.get("codec"),
             "release_group": r.get("release_group"),
+            "season": r.get("season"),
+            "episode": r.get("episode"),
         })
 
     return grouped

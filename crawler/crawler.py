@@ -1,19 +1,23 @@
 import sys
 import os
 
-# Add project root to path so sibling packages (database, utils) are importable
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
-import time
+import concurrent.futures
+import threading
 
 from database.db import init_db, get_connection, save_movie
 from crawler.parser_factory import ParserFactory
 from utils.logger import logger
 
 VIDEO_EXTENSIONS = (".mkv", ".mp4", ".avi", ".webm", ".m4v")
+MAX_WORKERS = 5
+MAX_DEPTH = 7
+
+lock = threading.Lock()
 
 
 def fetch(url):
@@ -28,17 +32,12 @@ def fetch(url):
 
 def extract_links(html, base_url):
     soup = BeautifulSoup(html, "html.parser")
-
     links = []
     for a in soup.find_all("a", href=True):
         href = a["href"]
-
         if href in ("../", "./"):
             continue
-
-        full_url = urljoin(base_url, href)
-        links.append(full_url)
-
+        links.append(urljoin(base_url, href))
     return links
 
 
@@ -46,24 +45,21 @@ def is_video(url):
     return url.lower().endswith(VIDEO_EXTENSIONS)
 
 
-def crawl(url, conn, depth=0, max_depth=7, visited=None):
-    if visited is None:
-        visited = set()
-
-    if url in visited:
-        return
-
-    visited.add(url)
+def process_url(url, conn, visited, depth):
+    with lock:
+        if url in visited or depth > MAX_DEPTH:
+            return []
+        visited.add(url)
 
     logger.info(f"[CRAWL] depth={depth} url={url}")
 
     html = fetch(url)
     if not html:
-        return
+        return []
 
     links = extract_links(html, url)
+    new_links = []
 
-    # Check if this page has archive-style movie listings
     has_movie_listings = "IMDb Code" in html or "start_year" in html
 
     if has_movie_listings:
@@ -74,48 +70,64 @@ def crawl(url, conn, depth=0, max_depth=7, visited=None):
                 for movie in movies:
                     if movie and movie.get("versions"):
                         for version in movie["versions"]:
-                            save_movie(conn, {
-                                "title": movie.get("title"),
-                                "year": movie.get("year"),
-                                "quality": version.get("quality_label"),
-                                "imdb_id": movie.get("imdb_id"),
-                                "rating": movie.get("rating"),
-                                "votes": movie.get("votes"),
-                                "url": version.get("url"),
-                                "file_size": version.get("size"),
-                                "sub_type": version.get("sub_type"),
-                            })
+                            with lock:
+                                save_movie(conn, {
+                                    "title": movie.get("title"),
+                                    "year": movie.get("year"),
+                                    "quality": version.get("quality_label"),
+                                    "imdb_id": movie.get("imdb_id"),
+                                    "rating": movie.get("rating"),
+                                    "votes": movie.get("votes"),
+                                    "url": version.get("url"),
+                                    "file_size": version.get("size"),
+                                    "sub_type": version.get("sub_type"),
+                                })
                         logger.info(f"[ARCHIVE] {movie.get('title')} ({len(movie['versions'])} versions)")
-                return
+                return []
 
     for link in links:
-
-        # جلوگیری از loop و garbage
-        if link in visited:
-            continue
-
-        # FILE
         if is_video(link):
             parser = ParserFactory.get_parser(link)
             movie = parser.parse(link, html)
-
             if movie:
-                save_movie(conn, movie)
+                with lock:
+                    save_movie(conn, movie)
                 logger.info(f"[SAVED] {movie['title']}")
+        elif link.endswith("/"):
+            with lock:
+                if link not in visited:
+                    new_links.append((link, depth + 1))
 
-        # DIRECTORY
-        elif link.endswith("/") and depth < max_depth:
-            crawl(link, conn, depth + 1, max_depth, visited)
+    return new_links
 
 
 def main():
     init_db()
     conn = get_connection()
+    visited = set()
 
     from config import SOURCES
 
-    for url in SOURCES:
-        crawl(url, conn)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        active = {}
+        for url in SOURCES:
+            future = executor.submit(process_url, url, conn, visited, 0)
+            active[future] = url
+
+        while active:
+            done, _ = concurrent.futures.wait(
+                active, return_when=concurrent.futures.FIRST_COMPLETED
+            )
+            for future in done:
+                url = active.pop(future)
+                try:
+                    new_links = future.result()
+                    if new_links:
+                        for link, depth in new_links:
+                            f = executor.submit(process_url, link, conn, visited, depth)
+                            active[f] = link
+                except Exception as e:
+                    logger.error(f"[ERROR] {url} -> {e}")
 
     conn.close()
 
