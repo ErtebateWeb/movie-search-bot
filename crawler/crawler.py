@@ -14,7 +14,7 @@ from crawler.parser_factory import ParserFactory
 from utils.logger import logger
 
 VIDEO_EXTENSIONS = (".mkv", ".mp4", ".avi", ".webm", ".m4v")
-MAX_WORKERS = 5
+MAX_WORKERS = 10
 MAX_DEPTH = 7
 
 lock = threading.Lock()
