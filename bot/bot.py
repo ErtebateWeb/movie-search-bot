@@ -119,7 +119,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "noop":
         return
 
-    parts = data.split(":")
+    parts = data.split(":", 2)
     if len(parts) != 3 or parts[0] != "page":
         return
 
