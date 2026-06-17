@@ -5,8 +5,8 @@ SOURCES = [
    # "https://dls2.film2cinemaha.top/DonyayeSerial/series2/",
     #"https://dls2.film2cinemaha.top/DonyayeSerial/series3/",
     #"https://dls2.film2cinemaha.top/DonyayeSerial/series4/",
-    #"https://dls2.film2cinemaha.top/DonyayeSerial/movies/",
-    #"https://dls2.film2cinemaha.top/DonyayeSerial/movie4/",
+    "https://dls2.film2cinemaha.top/DonyayeSerial/movies/",
+    "https://dls2.film2cinemaha.top/DonyayeSerial/movie4/",
 
     # Archive pages (structured listings with IMDb metadata)
     #"https://dls2.film2cinemaha.top/DonyayeSerial/top_5000_movies.html",
