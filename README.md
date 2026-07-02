@@ -18,13 +18,13 @@ Edit `config.py` to enable/disable sources. Uncomment the URLs you want to crawl
 
 ```python
 SOURCES = [
-    "https://edge01.155626.ir.cdn.ir/aG5p/Film/New-Server/",
-    "https://dls2.film2cinemaha.top/DonyayeSerial/movies/",
-    "https://dls2.film2cinemaha.top/DonyayeSerial/movie4/",
-    #"https://dls2.film2cinemaha.top/DonyayeSerial/series/",
-    #"https://dls2.film2cinemaha.top/DonyayeSerial/series2/",
-    #"https://dls2.film2cinemaha.top/DonyayeSerial/series3/",
-    #"https://dls2.film2cinemaha.top/DonyayeSerial/series4/",
+    "https://edge02.155626.ir.cdn.ir/Film/New-Server/",
+    "https://dls2.aparatchi-dlcenter.top/DonyayeSerial/movies/",
+    "https://dls2.aparatchi-dlcenter.top/DonyayeSerial/movie4/",
+    #"https://dls2.aparatchi-dlcenter.top/DonyayeSerial/series/",
+    #"https://dls2.aparatchi-dlcenter.top/DonyayeSerial/series2/",
+    #"https://dls2.aparatchi-dlcenter.top/DonyayeSerial/series3/",
+    #"https://dls2.aparatchi-dlcenter.top/DonyayeSerial/series4/",
 ]
 ```
 

@@ -13,7 +13,7 @@ class ParserFactory:
         if "film9" in url.lower() or "film2media" in url.lower():
             return Film9Parser()
 
-        if "dls2.film2cinemaha.top" in url:
+        if "dls2.aparatchi-dlcenter.top" in url:
             # Archive pages (top_5000_movies.html etc.) contain structured movie listings
             if url.endswith(".html"):
                 return DonyayeSerialArchiveParser()

@@ -5,10 +5,10 @@ import requests
 parser = DonyayeSerialParser()
 
 test_urls = [
-    "https://dls2.film2cinemaha.top/DonyayeSerial/movie4/1939/tt0032138/SoftSub/The.Wizard.Of.OZ.1939.1080p.BluRay.x265.RARBG.SoftSub.DonyayeSerial.mkv",
-    "https://dls2.film2cinemaha.top/DonyayeSerial/movie4/1939/tt0032138/SoftSub/The.Wizard.Of.Oz.1939.BluRay.720p.YIFY.SoftSub.DonyayeSerial.mkv",
-    "https://dls2.film2cinemaha.top/DonyayeSerial/movies/2000/tt0160484/NoSub/Lost.Souls.2000.720p.WEBRip.YIFY.DonyayeSerial.mp4",
-    "https://dls2.film2cinemaha.top/DonyayeSerial/series/Mindhunter/Dubbed/S02/1080p.Web-DL/Mindhunter.S02E01.1080p.Web-DL.mkv",
+    "https://dls2.aparatchi-dlcenter.top/DonyayeSerial/movie4/1939/tt0032138/SoftSub/The.Wizard.Of.OZ.1939.1080p.BluRay.x265.RARBG.SoftSub.DonyayeSerial.mkv",
+    "https://dls2.aparatchi-dlcenter.top/DonyayeSerial/movie4/1939/tt0032138/SoftSub/The.Wizard.Of.Oz.1939.BluRay.720p.YIFY.SoftSub.DonyayeSerial.mkv",
+    "https://dls2.aparatchi-dlcenter.top/DonyayeSerial/movies/2000/tt0160484/NoSub/Lost.Souls.2000.720p.WEBRip.YIFY.DonyayeSerial.mp4",
+    "https://dls2.aparatchi-dlcenter.top/DonyayeSerial/series/Mindhunter/Dubbed/S02/1080p.Web-DL/Mindhunter.S02E01.1080p.Web-DL.mkv",
     "https://dls4.film2cinemaha.top/DonyayeSerial/movies/1994/tt0111161/SoftSub/The.Shawshank.Redemption.1994.1080p.BluRay.SoftSub.RARBG.DonyayeSerial.mkv",
 ]
 
@@ -26,11 +26,11 @@ print("TEST: HTML table parsing for file size")
 print("=" * 60)
 
 try:
-    page_url = "https://dls2.film2cinemaha.top/DonyayeSerial/movie4/1939/tt0032138/SoftSub/"
+    page_url = "https://dls2.aparatchi-dlcenter.top/DonyayeSerial/movie4/1939/tt0032138/SoftSub/"
     r = requests.get(page_url, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
     html = r.text
 
-    file_url = "https://dls2.film2cinemaha.top/DonyayeSerial/movie4/1939/tt0032138/SoftSub/The.Wizard.Of.Oz.1939.BluRay.720p.YIFY.SoftSub.DonyayeSerial.mkv"
+    file_url = "https://dls2.aparatchi-dlcenter.top/DonyayeSerial/movie4/1939/tt0032138/SoftSub/The.Wizard.Of.Oz.1939.BluRay.720p.YIFY.SoftSub.DonyayeSerial.mkv"
     result = parser.parse(file_url, html)
     print(f"File: {file_url.split('/')[-1]}")
     for k, v in result.items():
@@ -45,7 +45,7 @@ print("TEST: Archive parser")
 print("=" * 60)
 
 try:
-    archive_url = "https://dls2.film2cinemaha.top/DonyayeSerial/top_5000_movies.html"
+    archive_url = "https://dls2.aparatchi-dlcenter.top/DonyayeSerial/top_5000_movies.html"
     r = requests.get(archive_url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
     html = r.text
     archive_parser = DonyayeSerialArchiveParser()

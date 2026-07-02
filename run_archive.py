@@ -8,8 +8,8 @@ conn = get_connection()
 parser = DonyayeSerialArchiveParser()
 
 urls = [
-    'https://dls2.film2cinemaha.top/DonyayeSerial/top_5000_movies.html',
-    'https://dls2.film2cinemaha.top/DonyayeSerial/top_1000_series.html',
+    'https://dls2.aparatchi-dlcenter.top/DonyayeSerial/top_5000_movies.html',
+    'https://dls2.aparatchi-dlcenter.top/DonyayeSerial/top_1000_series.html',
 ]
 
 for archive_url in urls:
